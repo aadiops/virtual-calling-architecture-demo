@@ -1,12 +1,20 @@
 # Virtual Calling Architecture
 
-This document describes a simple virtual calling architecture for a modern communication system.
+This document explains a simple but realistic virtual calling architecture for a communication platform. It is intended to help developers and architects understand the flow from client request to session establishment, media handling, notifications, and monitoring.
 
 ## Overview
 
-The system is composed of a set of modular components that work together to handle user sessions, call routing, media traffic, notifications, and observability.
+The system is composed of several layers:
 
-## Architecture
+- edge and request handling
+- auth and validation
+- call orchestration
+- media processing
+- presence and notifications
+- background job processing
+- storage and observability
+
+## Logical architecture
 
 ```mermaid
 flowchart LR
@@ -22,7 +30,7 @@ flowchart LR
     M --> DB[(Database)]
     M --> CACHE[(Redis / Cache)]
     C --> MQ[Message Queue]
-    MQ --> W[Worker / Async Processor]
+    MQ --> W[Background Worker]
     W --> EVT[Event Bus / Webhooks]
 
     G --> OBS[Logging / Metrics / Tracing]
@@ -30,9 +38,7 @@ flowchart LR
     M --> OBS
 ```
 
-## Deployment Architecture
-
-The system can be deployed as a set of independently scalable layers:
+## Deployment architecture
 
 ```mermaid
 flowchart TB
@@ -91,112 +97,77 @@ flowchart TB
     TR --> OBS
 ```
 
-## Deployment Layers
-
-### Edge layer
-- ingress and traffic protection
-- manages TLS termination, WAF rules, and rate limits
-- can be deployed with a load balancer or Kubernetes ingress
-
-### Application layer
-- stateless services run in containers or serverless functions
-- autoscaling is based on request throughput, CPU, and queue depth
-- application code is isolated from media-intensive work
-
-### Media layer
-- dedicated media servers process real-time communication streams
-- signaling traffic is separated from media flow to improve reliability
-- media nodes can be scaled independently from app nodes
-
-### Data layer
-- PostgreSQL holds persistent business and session metadata
-- Redis provides low-latency state and presence lookups
-- queues support retries and asynchronous notification workflows
-
-## Scalability and Reliability
-
-- run multiple application replicas behind a load balancer
-- separate APIs and media traffic to avoid resource contention
-- use health checks and rolling updates for safer deployments
-- keep queue-based processing for notifications and event fanout
-- monitor call failure, session drops, and media latency continuously
-
-## Security and Operations
-
-- secure all public endpoints with TLS, authentication, and access controls
-- isolate sensitive data in the database and secret management system
-- store logs and telemetry in centralized monitoring tools
-- alert on queue backlogs, connection failures, and degraded media quality
-
-## Component Responsibilities
+## Component responsibilities
 
 ### API Gateway
-Provides routing, security, and rate limiting.
+- routes incoming requests
+- applies rate limiting and quotas
+- terminates TLS and enforces security policies
 
 ### Authentication
-Validates users and authorizes requests.
+- verifies identity and token validity
+- checks authorization and user access
 
 ### Request Validator
-Ensures the request format and payload are valid before processing.
-
-### Routing / Service Discovery
-Finds the service responsible for the incoming communication request.
+- validates request payloads and headers
+- rejects malformed or incomplete calls
 
 ### Call Control Service
-Handles connection lifecycle, session updates, and call operations.
+- manages dialing, ringing, connection, and hangup logic
+- updates session state and call metadata
 
 ### Presence Service
-Tracks whether a user is online or offline and available for communication.
+- tracks user online status and reachability
+- supports queue routing and availability checks
 
 ### Media Service
-Manages real-time audio and video streams.
+- handles the actual voice and video streams
+- manages real-time media routing with WebRTC or SIP backends
 
 ### Notification Service
-Sends SMS, email, push, or webhook-notifications based on call events.
+- sends SMS, email, push, or webhook notifications
+- reacts to state changes such as call started or missed
 
-### Message Queue
-Handles asynchronous tasks and decouples heavy operations.
+### Database and cache
+- stores user profiles, sessions, and audit logs
+- caches presence and hotspot session data for low latency
 
-### Background Worker
-Executes jobs such as notifications, logging, and event processing.
-
-### Database and Cache
-Store persistent and ephemeral data for sessions, users, and state.
+### Queue and workers
+- offload heavy async processing
+- support retries, fanout, and failure recovery
 
 ### Observability
-Collects logs, traces, and metrics to monitor the health of the system.
+- tracks throughput, latency, and call quality metrics
+- records logs and traces for debugging and incident response
 
-## Typical Flow
+## Typical flow
 
-1. User initiates a call from the app.
-2. Gateway authenticates and validates the request.
-3. Router directs the request to the correct service.
-4. Call Control Service starts or updates the session.
-5. Media Service handles the connection.
-6. Queue-driven workers handle notifications and downstream processing.
-7. Observability layer captures health and performance data.
+1. Client initiates a call request.
+2. API Gateway authorizes and validates the request.
+3. Router selects the target service.
+4. Call Control creates and updates session state.
+5. Media Service establishes or manages the connection.
+6. Queue workers process async actions like notifications and job fanout.
+7. Logs, traces, and metrics are stored for monitoring.
 
-## Best Practices
+## Best practices
 
-- separate stateless services from stateful services
-- use cache for fast access to presence/session state
-- move long-running tasks into queues and workers
-- monitor call failures and latency with metrics and tracing
-- secure media endpoints with authentication and transport protections
+- separate business logic from media processing
+- horizontal scale application and media nodes independently
+- keep session state compact and cache-friendly
+- use asynchronous queues for non-critical workflows
+- treat latency and call quality as first-class monitoring signals
 
-## Example Stack
+## Example stack
 
 - Frontend: React, Flutter, Web
 - Backend: Node.js, Python, Go
+- Media: WebRTC, SIP, Twilio, Janus, Kurento
 - Messaging: RabbitMQ, Kafka, SQS
 - Database: PostgreSQL, MySQL, MongoDB
 - Cache: Redis
-- Media: WebRTC, SIP, Twilio, Janus, Kurento
-- Observability: Prometheus, Grafana, OpenTelemetry
+- Monitoring: Prometheus, Grafana, OpenTelemetry
 
 ## Notes
-This architecture is intentionally simplified to make the deployment model understandable and easy to extend in a real production environment.
 
----
-
-This deployment view addresses the repository issue by documenting the edge, application, media, and data layers along with scalability, resilience, and observability considerations.
+This is intentionally a simplified architecture designed to be clear, extensible, and easy to adapt for a production system.

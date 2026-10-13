@@ -1,0 +1,20 @@
+{
+  "name": "virtual-calling-architecture-demo",
+  "version": "1.0.0",
+  "description": "A simple virtual calling architecture demo with a Node.js implementation and documentation.",
+  "main": "examples/virtual-calling-demo.js",
+  "scripts": {
+    "start": "node examples/virtual-calling-demo.js",
+    "test": "node --check examples/virtual-calling-demo.js"
+  },
+  "keywords": [
+    "virtual-calling",
+    "architecture",
+    "webrtc",
+    "telephony",
+    "demo",
+    "node"
+  ],
+  "license": "MIT",
+  "private": false
+}
