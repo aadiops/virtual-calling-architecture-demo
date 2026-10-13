@@ -30,6 +30,104 @@ flowchart LR
     M --> OBS
 ```
 
+## Deployment Architecture
+
+The system can be deployed as a set of independently scalable layers:
+
+```mermaid
+flowchart TB
+    subgraph Edge
+        LB[Load Balancer]
+        WAF[WAF / DDoS Protection]
+        CDN[CDN / Static Assets]
+    end
+
+    subgraph AppTier[Application Tier]
+        G[API Gateway]
+        A[Auth Service]
+        C[Call Control Service]
+        P[Presence Service]
+        N[Notification Service]
+    end
+
+    subgraph MediaTier[Media Tier]
+        ST[Signaling Gateway]
+        MS[Media Server / SFU]
+    end
+
+    subgraph DataTier[Data Tier]
+        DB[(PostgreSQL)]
+        REDIS[(Redis Cache)]
+        MQ[(Message Queue)]
+        OBJ[(Object Storage / Logs)]
+    end
+
+    subgraph Observability[Observability]
+        MET[Metrics]
+        LOG[Logs]
+        TR[Tracing]
+    end
+
+    CDN --> LB
+    LB --> WAF
+    WAF --> G
+    G --> A
+    G --> C
+    G --> P
+    C --> MQ
+    C --> MS
+    P --> REDIS
+    N --> MQ
+    ST --> MS
+    C --> DB
+    G --> MET
+    C --> LOG
+    MS --> TR
+    DB --> OBJ
+    REDIS --> MET
+    MQ --> LOG
+    MET --> OBS
+    LOG --> OBS
+    TR --> OBS
+```
+
+## Deployment Layers
+
+### Edge layer
+- ingress and traffic protection
+- manages TLS termination, WAF rules, and rate limits
+- can be deployed with a load balancer or Kubernetes ingress
+
+### Application layer
+- stateless services run in containers or serverless functions
+- autoscaling is based on request throughput, CPU, and queue depth
+- application code is isolated from media-intensive work
+
+### Media layer
+- dedicated media servers process real-time communication streams
+- signaling traffic is separated from media flow to improve reliability
+- media nodes can be scaled independently from app nodes
+
+### Data layer
+- PostgreSQL holds persistent business and session metadata
+- Redis provides low-latency state and presence lookups
+- queues support retries and asynchronous notification workflows
+
+## Scalability and Reliability
+
+- run multiple application replicas behind a load balancer
+- separate APIs and media traffic to avoid resource contention
+- use health checks and rolling updates for safer deployments
+- keep queue-based processing for notifications and event fanout
+- monitor call failure, session drops, and media latency continuously
+
+## Security and Operations
+
+- secure all public endpoints with TLS, authentication, and access controls
+- isolate sensitive data in the database and secret management system
+- store logs and telemetry in centralized monitoring tools
+- alert on queue backlogs, connection failures, and degraded media quality
+
 ## Component Responsibilities
 
 ### API Gateway
@@ -95,3 +193,10 @@ Collects logs, traces, and metrics to monitor the health of the system.
 - Cache: Redis
 - Media: WebRTC, SIP, Twilio, Janus, Kurento
 - Observability: Prometheus, Grafana, OpenTelemetry
+
+## Notes
+This architecture is intentionally simplified to make the deployment model understandable and easy to extend in a real production environment.
+
+---
+
+This deployment view addresses the repository issue by documenting the edge, application, media, and data layers along with scalability, resilience, and observability considerations.

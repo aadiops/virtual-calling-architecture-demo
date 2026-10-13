@@ -35,6 +35,105 @@ flowchart LR
     M --> OBS
 ```
 
+## Deployment View
+
+The deployment model separates the system into four logical layers: edge, application, media, and data.
+
+```mermaid
+flowchart TB
+    subgraph Edge
+        LB[Load Balancer]
+        WAF[WAF / DDoS Protection]
+        CDN[CDN / Static Assets]
+    end
+
+    subgraph AppTier[Application Tier]
+        G[API Gateway]
+        A[Auth Service]
+        C[Call Control Service]
+        P[Presence Service]
+        N[Notification Service]
+    end
+
+    subgraph MediaTier[Media Tier]
+        MS[Media Server / SFU]
+        ST[Signaling / WebRTC Gateway]
+    end
+
+    subgraph DataTier[Data Tier]
+        DB[(PostgreSQL)]
+        REDIS[(Redis Cache)]
+        MQ[(Message Queue)]
+        OBJ[(Object Storage / Logs)]
+    end
+
+    subgraph Observability[Observability]
+        MET[Metrics]
+        LOG[Logs]
+        TR[Tracing]
+    end
+
+    CDN --> LB
+    LB --> WAF
+    WAF --> G
+    G --> A
+    G --> C
+    G --> P
+    C --> MS
+    C --> MQ
+    P --> REDIS
+    N --> MQ
+    MS --> DB
+    ST --> MS
+    C --> DB
+    G --> MET
+    C --> LOG
+    MS --> TR
+    DB --> OBJ
+    REDIS --> MET
+    MQ --> LOG
+    MET --> OBS
+    LOG --> OBS
+    TR --> OBS
+```
+
+## Deployment Notes
+
+### Edge layer
+- entry point for external traffic
+- performs HTTPS termination, rate limiting, and DDoS protection
+- can scale horizontally behind a load balancer or ingress controller
+
+### Application layer
+- stateless services run as containers or serverless functions
+- autoscaling is applied based on CPU, queue depth, or request volume
+- each service should be independently deployable and observable
+
+### Media layer
+- dedicated media servers handle real-time voice and video streams
+- the signaling gateway coordinates sessions, ICE, SDP, and connection setup
+- this tier is resource-intensive and should be horizontally scaled with care
+
+### Data layer
+- relational databases store user metadata, sessions, and audit records
+- Redis keeps hot session state and presence info for low-latency access
+- queues decouple notification and background work from user-facing flows
+
+## Scalability and Resilience
+
+- deploy multiple gateway and application instances behind a load balancer
+- keep session state lightweight and cacheable where possible
+- use queue-based retries for notifications and webhook delivery
+- maintain health checks and rolling deployments for zero-downtime upgrades
+- isolate media traffic from API traffic to reduce contention and latency
+
+## Observability
+
+- collect request latency and throughput metrics from gateways and services
+- capture logs for call creation, session updates, and failures
+- instrument traces for end-to-end call flows
+- alert on queue depth, media server performance, and call drop rates
+
 ## Components
 
 ### 1. Client App / User
@@ -139,3 +238,7 @@ Collects:
 
 ## Notes
 This is intentionally a simplified architecture to make the foundational design easy to understand and extend.
+
+---
+
+This repository now includes both the logical architecture and a deployment-oriented view matching the repository issue for deployment architecture coverage.
